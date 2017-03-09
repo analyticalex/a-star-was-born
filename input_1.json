@@ -1,6 +1,7 @@
 {
     "type": "TYPE_INTEGER_GRID",
     "start": 1,
+	"goal": 25,
     "nodes": [
         {
             "id": 1,

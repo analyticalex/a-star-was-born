@@ -6,70 +6,79 @@ import math
 
 class StarSolver():
     graph = {}
+    start_node = None
+    goal_node = None
 
-    def get_node_with_min_f_score(node_set):
-        min_value = math.Inf
-        best_node = None
-        for n in node_set.values():
-            if n.f_score < min_value:
-                best_node = n
-                min_value = n.f_score
-        return best_node
-
-    def solveTheMaze(self, start_node, goal_node):
-        closed_set = {}
-        open_set = {start_node}
-
-        # gScore[start] := 0 
-        start_node.exact_cost_to = math.inf
-
-        # // For each node, the total cost of getting from the start node to the goal
-        # // by passing by that node. That value is partly known, partly heuristic.
-        # fScore := map with default value of Infinity
-        # // For the first node, that value is completely heuristic.
-        # fScore[start] := heuristic_cost_estimate(start, goal)
-        start_node.f_score = heuristic_cost_estimate(start_node, goal_node)
-
-        # while openSet is not empty
-        while open_set != {}:
-            current_node = get_node_with_min_f_score(open_set)
-        #     current := the node in openSet having the lowest fScore[] value
+    def solve_the_maze(self, start_node, goal_node):
+        #self.print_node_set(self.graph)
+        closed_set = {} # nodes already evaluated
+        open_set = {start_node.id: start_node} # discovered nodes, not yet evaluated
+        
+        # initial values for start node
+        # cost from start to start is zero
+        # cost from start to goal is completely heuristic
+        start_node.cost_to = 0
+        start_node.cost_thru = self.heuristic_cost_estimate(start_node, goal_node)
+        
+        while open_set:
+        
+            current_node = self.find_node_with_min_thru_cost(open_set)
             if current_node.id == goal_node.id:
-                return reconstruct_path(current_node)
-        #     if current = goal
-        #         return reconstruct_path(cameFrom, current)
+                return self.reconstruct_path(current_node)
 
-        #     openSet.Remove(current)
-        #     closedSet.Add(current)
-        #     for each neighbor of current
-        #         if neighbor in closedSet
-        #             continue		// Ignore the neighbor which is already evaluated.
-        #         // The distance from start to a neighbor
-        #         tentative_gScore := gScore[current] + dist_between(current, neighbor)
-        #         if neighbor not in openSet	// Discover a new node
-        #             openSet.Add(neighbor)
-        #         else if tentative_gScore >= gScore[neighbor]
-        #             continue		// This is not a better path.
+            open_set.pop(current_node.id, None)
+            closed_set[current_node.id] = current_node
+            
+            for n in current_node.neighbors:
+                if n in closed_set:
+                    continue # ignore neighbor if already evaluted
+                    
+                neighbor = self.graph[n]
+                tentative_n_to_cost = current_node.cost_to + current_node.neighbors[n]
+                if n not in open_set:
+                    open_set[n] = neighbor
+                elif tentative_n_to_cost >= neighbor.cost_to:
+                    continue # this is not a better path
 
-        #         // This path is the best until now. Record it!
-        #         cameFrom[neighbor] := current
-        #         gScore[neighbor] := tentative_gScore
-        #         fScore[neighbor] := gScore[neighbor] + heuristic_cost_estimate(neighbor, goal)
+                # this is the best path found so far!
+                neighbor.came_from = current_node
+                neighbor.cost_to = tentative_n_to_cost
+                neighbor.cost_thru = neighbor.cost_to + self.heuristic_cost_estimate(neighbor, goal_node)
 
-        # return failure
+        pp.pprint("Error: No path from node %d to node %d." % (start_node.id, goal_node.id))
 
+    def heuristic_cost_estimate(self, node, goal):
+        return math.sqrt(math.pow(goal.x - node.x,2) + math.pow(goal.y - node.y,2))
 
-    def heuristic_cost_estimate(self, neighbor, goal):
-        pass
+    def find_node_with_min_thru_cost(self, node_set):
+        min_value = math.inf
+        min_node = None
+        for n in node_set.values():
+            if n.cost_thru < min_value:
+                min_node = n
+                min_value = n.cost_thru
+        return min_node
+
+    def reconstruct_path(self, node):
+        path = str(node.id)
+        while node != self.start_node:
+            node = node.came_from
+            path = str(node.id) + " -> " + path
+        print(path)
 
     def read_maze_file(self, filename):
         with open(filename) as input:
             graph_json = json.load(input)
             for n in graph_json["nodes"]:
-                self.graph[n["id"]] = GraphNode(n["id"], n["pos"][0], n["pos"][1], n["neighbors"])
+                new_node = GraphNode(n["id"], n["pos"][0], n["pos"][1], n["neighbors"])
+                self.graph[str(n["id"])] = new_node
+                if n["id"] == graph_json["start"]:
+                    self.start_node = new_node
+                if n["id"] == graph_json["goal"]:
+                    self.goal_node = new_node
     
-    def print_graph_to_text(self):
-        for node in self.graph.values():
+    def print_node_set(self, node_set):
+        for node in node_set.values():
             print("node %d: " % node.id)
             print("  x: %d, y: %d" % (node.x, node.y))
             print("  neighbors: ", end="")
@@ -84,17 +93,11 @@ class GraphNode:
         self.y = y
         self.neighbors = neighbors
         self.came_from = None
-        self.exact_cost_to = math.inf
-        self.f_cost = math.inf
-    
-    def set_came_from(self, came_from):
-        self.came_from = came_from
-    
-    def set_exact_cost_to(self, exact_cost_to):
-        self.exact_cost_to = exact_cost_to
+        self.cost_to = math.inf
+        self.cost_thru = math.inf
 
 
 if __name__ == "__main__":
     ss = StarSolver()
     ss.read_maze_file('input_1.json')
-    ss.print_graph_to_text()
+    ss.solve_the_maze(ss.start_node, ss.goal_node)
