@@ -2,6 +2,8 @@ import json
 import pprint as pp
 import math
 
+#Authors: Evan Bluhm, Alex French, Elizabeth Gass, Samuel Gass, Margaret Yim
+
 class StarSolver():
     graph = {}
 
